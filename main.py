@@ -15,10 +15,40 @@ from .services import seed_sources, collect_feeds, enrich_article, generate_arti
 BASE=Path(__file__).resolve().parent
 scheduler=BackgroundScheduler()
 
+async def backfill_articles(limit=50):
+    """Repair older published articles missing full content or images."""
+    db=SessionLocal()
+    repaired=0
+    try:
+        articles=db.scalars(
+            select(Article).where(
+                Article.published==True
+            ).order_by(Article.created_at.asc()).limit(limit)
+        ).all()
+        from .services import hydrate_article, generate_article_image
+        for article in articles:
+            changed=False
+            if not article.body or len((article.body or "").strip()) < 500 or not article.image_url:
+                await hydrate_article(article)
+                changed=True
+            if not article.image_url:
+                await generate_article_image(article)
+                changed=True
+            if changed:
+                repaired += 1
+        db.commit()
+        return repaired
+    except Exception as exc:
+        db.rollback()
+        print(f"backfill error: {exc}")
+        return repaired
+    finally:
+        db.close()
+
 async def async_job():
     db=SessionLocal()
     try:
-        new=collect_feeds(db)
+        repaired=await backfill_articles(50)\n        print(f"backfill repaired: {repaired}")\n        new=collect_feeds(db)
         for article in new[:20]:
             from .services import hydrate_article
             await hydrate_article(article)
