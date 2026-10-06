@@ -105,6 +105,25 @@ Yalnızca verilen bilgileri kullan. JSON döndür: title, summary, body, categor
         article.confidence=max(article.confidence,75)
     return article
 
+async def generate_article_image(article):
+    base = settings.image_base_url or settings.ai_base_url
+    key = settings.image_api_key or settings.ai_api_key
+    model = settings.image_model
+    if not (base and key and model): return ""
+    prompt = "Create a professional editorial news cover image for a Turkish news website. Photorealistic, modern newsroom quality, no logos, no watermarks, no readable text. Topic: " + article.title + ". Category: " + article.category
+    url = base.rstrip("/") + "/images/generations"
+    payload = {"model": model, "prompt": prompt, "size": settings.image_size, "n": 1}
+    try:
+        async with httpx.AsyncClient(timeout=120) as client:
+            r = await client.post(url, headers={"Authorization": "Bearer " + key}, json=payload)
+            r.raise_for_status()
+            data = r.json().get("data", [])
+            if data and data[0].get("url"):
+                article.image_url = data[0]["url"]
+                return article.image_url
+    except Exception as exc:
+        print("image generation error for article %s: %s" % (article.id, exc))
+    return ""
 async def make_podcast(db,max_articles=8):
     articles=db.scalars(select(Article).where(Article.published==True).order_by(Article.published_at.desc()).limit(max_articles)).all()
     if not articles: return None
