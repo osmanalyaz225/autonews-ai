@@ -1,4 +1,5 @@
 import hashlib, re, html, json
+from urllib.parse import quote
 from datetime import datetime
 import feedparser, httpx
 from urllib.parse import urljoin
@@ -154,6 +155,12 @@ Yalnızca verilen bilgileri kullan. JSON döndür: title, summary, body, categor
         article.confidence=max(article.confidence,75)
     return article
 
+def fallback_image(article):
+    title = html.escape((article.title or "Haber")[:110])
+    category = html.escape((article.category or "Haber")[:30])
+    svg = f'<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0"/><stop offset="1" stop-color="#444"/></linearGradient></defs><rect width="1200" height="675" fill="url(#g)"/><circle cx="1030" cy="130" r="180" fill="#fff" opacity=".08"/><text x="70" y="90" font-family="Arial,sans-serif" font-size="30" fill="#fff" opacity=".8">TECHHABER • {category}</text><text x="70" y="300" font-family="Arial,sans-serif" font-size="54" font-weight="700" fill="#fff">{title}</text><rect x="70" y="560" width="180" height="6" fill="#fff" opacity=".8"/></svg>'
+    return "data:image/svg+xml;charset=UTF-8," + quote(svg)
+
 async def generate_article_image(article):
     base = settings.image_base_url or settings.ai_base_url
     key = settings.image_api_key or settings.ai_api_key
@@ -173,6 +180,15 @@ async def generate_article_image(article):
     except Exception as exc:
         print("image generation error for article %s: %s" % (article.id, exc))
     return ""
+async def ensure_article_image(article):
+    if article.image_url:
+        return article.image_url
+    generated = await generate_article_image(article)
+    if generated:
+        return generated
+    article.image_url = fallback_image(article)
+    return article.image_url
+
 async def make_podcast(db,max_articles=8):
     articles=db.scalars(select(Article).where(Article.published==True).order_by(Article.published_at.desc()).limit(max_articles)).all()
     if not articles: return None
