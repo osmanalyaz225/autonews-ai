@@ -15,24 +15,29 @@ from .services import seed_sources, collect_feeds, enrich_article, make_podcast
 BASE=Path(__file__).resolve().parent
 scheduler=BackgroundScheduler()
 
-def job():
+async def async_job():
     db=SessionLocal()
     try:
         new=collect_feeds(db)
         for article in new[:20]:
-            asyncio.run(enrich_article(article))
+            await enrich_article(article)
             if article.confidence>=90:
                 article.published=True
                 article.status="published"
                 article.published_at=datetime.utcnow()
         db.commit()
         if new:
-            asyncio.run(make_podcast(db))
+            await make_podcast(db)
+        return len(new)
     except Exception as exc:
         db.rollback()
         print(f"pipeline error: {exc}")
+        return 0
     finally:
         db.close()
+
+def job():
+    return asyncio.run(async_job())
 
 @asynccontextmanager
 async def lifespan(app):
@@ -41,7 +46,7 @@ async def lifespan(app):
     db=SessionLocal()
     try: seed_sources(db)
     finally: db.close()
-    job()
+    await async_job()
     scheduler.add_job(job,"interval",minutes=10,id="news-pipeline",replace_existing=True)
     scheduler.start()
     yield
