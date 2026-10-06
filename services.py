@@ -44,6 +44,7 @@ def seed_sources(db):
 def collect_feeds(db):
     created=[]
     sources=db.scalars(select(Source).where(Source.enabled==True)).all()
+    used_slugs=set(db.scalars(select(Article.slug)).all())
     for source in sources:
         try:
             feed=feedparser.parse(source.url)
@@ -55,9 +56,10 @@ def collect_feeds(db):
                 base_slug=slugify(title)+"-"+key
                 slug=base_slug
                 suffix=2
-                while db.scalar(select(Article).where(Article.slug==slug)):
+                while slug in used_slugs:
                     slug=f"{base_slug}-{suffix}"
                     suffix += 1
+                used_slugs.add(slug)
                 a=Article(title=title,slug=slug,
                           summary=clean(item.get("summary",""))[:1800],
                           body=clean(item.get("summary",""))[:1800],
