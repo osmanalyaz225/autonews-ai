@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: autonews-ai
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: Haber otonom
+          property: connectionString
+      - key: ENV
+        value: production
+      - key: APP_NAME
+        value: AutoNews AI
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: AI_BASE_URL
+        sync: false
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_MODEL
+        sync: false
+      - key: TTS_BASE_URL
+        sync: false
+      - key: TTS_API_KEY
+        sync: false
+      - key: TTS_MODEL
+        sync: false
+      - key: AUTO_PUBLISH_SCORE
+        value: "90"
+      - key: PODCAST_AUTO_GENERATE
+        value: "true"
+      - key: SCHEDULER_MINUTES
+        value: "10"
