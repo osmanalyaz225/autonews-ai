@@ -41,6 +41,20 @@ def seed_sources(db):
             db.add(Source(name=name,url=url))
     db.commit()
 
+def extract_image_url(item):
+    candidates=[]
+    for key in ("media_content","media_thumbnail"):
+        for media in (item.get(key) or []):
+            if isinstance(media, dict) and media.get("url"):
+                candidates.append(media["url"])
+    for enc in (item.get("enclosures") or []):
+        if isinstance(enc, dict) and enc.get("href") and str(enc.get("type","")).startswith("image/"):
+            candidates.append(enc["href"])
+    text=item.get("summary","") or item.get("description","") or ""
+    m=re.search(r'<img[^>]+src=["\']([^"\']+)["\']', text, re.I)
+    if m: candidates.append(m.group(1))
+    return next((u for u in candidates if str(u).startswith(("http://","https://"))), "")
+
 def collect_feeds(db):
     created=[]
     sources=db.scalars(select(Source).where(Source.enabled==True)).all()
@@ -65,6 +79,7 @@ def collect_feeds(db):
                           body=clean(item.get("summary",""))[:1800],
                           category=guess_category(title),source_name=source.name,
                           source_url=url,source_count=1,confidence=60,status="published",
+                          image_url=extract_image_url(item),
                           published=True,published_at=datetime.utcnow())
                 db.add(a); created.append(a)
         except Exception as exc:
