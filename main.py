@@ -10,7 +10,7 @@ from sqlalchemy import select, desc
 from apscheduler.schedulers.background import BackgroundScheduler
 from .db import SessionLocal, init_db
 from .models import Article
-from .services import seed_sources, collect_feeds, enrich_article, generate_article_image, make_podcast
+from .services import seed_sources, collect_feeds, enrich_article, ensure_article_image, make_podcast
 
 BASE=Path(__file__).resolve().parent
 scheduler=BackgroundScheduler()
@@ -32,7 +32,7 @@ async def backfill_articles(limit=50):
                 await hydrate_article(article)
                 changed=True
             if not article.image_url:
-                await generate_article_image(article)
+                await ensure_article_image(article)
                 changed=True
             if changed:
                 repaired += 1
