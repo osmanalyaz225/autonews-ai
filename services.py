@@ -1,6 +1,7 @@
 import hashlib, re, html, json
 from datetime import datetime
 import feedparser, httpx
+from urllib.parse import urljoin
 from sqlalchemy import select
 from .config import settings
 from .models import Source, Article, Podcast
@@ -55,6 +56,31 @@ def extract_image_url(item):
     if m: candidates.append(m.group(1))
     return next((u for u in candidates if str(u).startswith(("http://","https://"))), "")
 
+async def fetch_article_media(url, fallback_summary=""):
+    try:
+        headers={"User-Agent":"Mozilla/5.0 (compatible; TechhaberBot/1.0)"}
+        async with httpx.AsyncClient(timeout=20, follow_redirects=True, headers=headers) as client:
+            r=await client.get(url)
+            r.raise_for_status()
+            text=r.text
+        image=""
+        for pattern in [r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)',
+                        r'<meta[^>]+name=["\']twitter:image["\'][^>]+content=["\']([^"\']+)']:
+            m=re.search(pattern,text,re.I)
+            if m:
+                image=urljoin(url,html.unescape(m.group(1)))
+                break
+        blocks=re.findall(r'<(?:article|main)[^>]*>(.*?)</(?:article|main)>',text,re.I|re.S)
+        candidate=blocks[0] if blocks else text
+        paragraphs=re.findall(r'<p[^>]*>(.*?)</p>',candidate,re.I|re.S)
+        content="\n\n".join(clean(p) for p in paragraphs if len(clean(p))>35)
+        if len(content)<300:
+            content=clean(fallback_summary)
+        return content[:12000], image
+    except Exception as exc:
+        print("article fetch error %s: %s" % (url, exc))
+        return clean(fallback_summary), ""
+
 def collect_feeds(db):
     created=[]
     sources=db.scalars(select(Source).where(Source.enabled==True)).all()
@@ -74,18 +100,26 @@ def collect_feeds(db):
                     slug=f"{base_slug}-{suffix}"
                     suffix += 1
                 used_slugs.add(slug)
-                a=Article(title=title,slug=slug,
-                          summary=clean(item.get("summary",""))[:1800],
-                          body=clean(item.get("summary",""))[:1800],
+                summary=clean(item.get("summary",""))[:1800]
+                a=Article(title=title,slug=slug,summary=summary,body=summary,
                           category=guess_category(title),source_name=source.name,
                           source_url=url,source_count=1,confidence=60,status="published",
                           image_url=extract_image_url(item),
                           published=True,published_at=datetime.utcnow())
-                db.add(a); created.append(a)
+                db.add(a); db.flush(); created.append(a)
         except Exception as exc:
             print(f"feed error {source.url}: {exc}")
     db.commit()
     return created
+
+async def hydrate_article(article):
+    body,image=await fetch_article_media(article.source_url, article.summary)
+    if len(body)>len(article.body or ""):
+        article.body=body
+        article.summary=body[:500]
+    if not article.image_url and image:
+        article.image_url=image
+    return article
 
 async def ai_complete(prompt):
     if not (settings.ai_base_url and settings.ai_api_key and settings.ai_model): return ""
