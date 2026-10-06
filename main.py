@@ -48,7 +48,9 @@ async def backfill_articles(limit=50):
 async def async_job():
     db=SessionLocal()
     try:
-        repaired=await backfill_articles(50)\n        print(f"backfill repaired: {repaired}")\n        new=collect_feeds(db)
+        repaired=await backfill_articles(50)
+        print(f"backfill repaired: {repaired}")
+        new=collect_feeds(db)
         for article in new[:20]:
             from .services import hydrate_article
             await hydrate_article(article)
