@@ -24,6 +24,8 @@ class Article(Base):
     confidence: Mapped[float] = mapped_column(Float, default=50)
     status: Mapped[str] = mapped_column(String(30), default="draft")
     published: Mapped[bool] = mapped_column(Boolean, default=False)
+    image_url: Mapped[str] = mapped_column(String(2000), default="")
+    tags: Mapped[str] = mapped_column(Text, default="")
     published_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
