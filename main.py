@@ -20,6 +20,8 @@ async def async_job():
     try:
         new=collect_feeds(db)
         for article in new[:20]:
+            from .services import hydrate_article
+            await hydrate_article(article)
             await enrich_article(article)
             if not article.image_url:
                 await generate_article_image(article)
