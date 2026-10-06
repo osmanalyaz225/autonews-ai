@@ -52,11 +52,18 @@ def collect_feeds(db):
                 if not title or not url: continue
                 if db.scalar(select(Article).where(Article.source_url==url)): continue
                 key=hashlib.sha256(url.encode()).hexdigest()[:10]
-                a=Article(title=title,slug=slugify(title)+"-"+key,
+                base_slug=slugify(title)+"-"+key
+                slug=base_slug
+                suffix=2
+                while db.scalar(select(Article).where(Article.slug==slug)):
+                    slug=f"{base_slug}-{suffix}"
+                    suffix += 1
+                a=Article(title=title,slug=slug,
                           summary=clean(item.get("summary",""))[:1800],
                           body=clean(item.get("summary",""))[:1800],
                           category=guess_category(title),source_name=source.name,
-                          source_url=url,source_count=1,confidence=60,status="review")
+                          source_url=url,source_count=1,confidence=60,status="published",
+                          published=True,published_at=datetime.utcnow())
                 db.add(a); created.append(a)
         except Exception as exc:
             print(f"feed error {source.url}: {exc}")
