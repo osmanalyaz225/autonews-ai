@@ -25,7 +25,7 @@ async def backfill_articles(limit=50):
                 Article.published==True
             ).order_by(Article.created_at.asc()).limit(limit)
         ).all()
-        from .services import hydrate_article, generate_article_image
+        from .services import hydrate_article
         for article in articles:
             changed=False
             if not article.body or len((article.body or "").strip()) < 500 or not article.image_url:
@@ -56,7 +56,7 @@ async def async_job():
             await hydrate_article(article)
             await enrich_article(article)
             if not article.image_url:
-                await generate_article_image(article)
+                await ensure_article_image(article)
             if article.confidence>=90:
                 article.published=True
                 article.status="published"
