@@ -9,3 +9,5 @@ python-multipart==0.0.20
 passlib[bcrypt]==1.7.4
 apscheduler==3.11.0
 pytest==8.4.1
+
+psycopg[binary]==3.2.10
