@@ -1,0 +1,1 @@
+self.addEventListener("install",()=>self.skipWaiting());self.addEventListener("activate",e=>e.waitUntil(clients.claim()));self.addEventListener("push",e=>{let d={title:"Kişisel AI Ajanı",body:"Yeni bildirim"};try{d=JSON.parse(e.data.text())}catch{}e.waitUntil(self.registration.showNotification(d.title,{body:d.body}))});
