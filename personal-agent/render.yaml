@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: kisisel-ai-ajan
+    runtime: node
+    plan: free
+    rootDir: personal-agent
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-6-luna
+      - key: APP_SECRET
+        sync: false
+      - key: VAPID_SUBJECT
+        sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
