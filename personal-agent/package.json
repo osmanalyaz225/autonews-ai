@@ -1,0 +1,1 @@
+{"name":"kisisel-ai-ajan","version":"4.0.0","private":true,"type":"module","scripts":{"start":"node server.js"},"dependencies":{"better-sqlite3":"^12.4.1","dotenv":"^17.2.3","express":"^5.1.0","openai":"^6.0.0","web-push":"^3.6.7"}}
